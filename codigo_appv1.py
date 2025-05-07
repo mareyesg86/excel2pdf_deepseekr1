@@ -3,93 +3,89 @@ import openpyxl
 from fpdf import FPDF
 import os
 from io import BytesIO
-import tempfile
 
-# Configuración inicial de la aplicación
-st.set_page_config(page_title="Excel a PDF", page_icon="📄")
-st.title("📄 Conversor de Excel a PDF")
-st.write("Convierte tus archivos Excel a PDF con formato profesional")
+# Configuración de la aplicación
+st.set_page_config(page_title="Excel a PDF", layout="wide")
+st.title("Conversor de Excel a PDF Profesional")
 
-# Mapa de colores a niveles de riesgo (se mantiene igual)
-COLOR_TO_RISK_LEVEL = {
-    "FF00FF00": "ACEPTABLE",
-    "00FF00": "ACEPTABLE",
-    "FF008000": "ACEPTABLE",
-    "FF92D050": "ACEPTABLE",
-    "FFFFFF00": "INTERMEDIO",
-    "FFFFC000": "INTERMEDIO",
-    "FFFFA500": "INTERMEDIO",
-    "FFFF0000": "CRÍTICO",
-}
-
-# Funciones auxiliares (add_table_to_pdf y add_structured_entry_to_pdf se mantienen igual)
-# [Pega aquí las funciones add_table_to_pdf y add_structured_entry_to_pdf del código original]
-
-def process_excel_to_pdf(uploaded_file):
-    """Procesa el archivo Excel subido y genera un PDF"""
+# Función para procesar el Excel y generar PDF
+def excel_to_pdf(uploaded_file):
     try:
-        # Crear un archivo temporal
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-            # Escribir el contenido del archivo subido al temporal
-            tmp.write(uploaded_file.getvalue())
-            tmp_path = tmp.name
+        # Opción 1: Usar el buffer directamente (para versiones recientes de openpyxl)
+        wb = openpyxl.load_workbook(filename=BytesIO(uploaded_file.getvalue()), data_only=True)
         
-        # Ahora podemos cargar el workbook desde el archivo temporal
-        wb = openpyxl.load_workbook(tmp_path, data_only=True)
+        # Opción alternativa 2: Guardar temporalmente en disco (más compatible)
+        # with open("temp.xlsx", "wb") as f:
+        #     f.write(uploaded_file.getbuffer())
+        # wb = openpyxl.load_workbook("temp.xlsx", data_only=True)
         
         # Crear PDF
         pdf = FPDF(orientation='L', unit='mm', format='A3')
         pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.set_font("Arial", size=10)
         pdf.add_page()
-
-        # Procesar hojas (ejemplo con Hoja 1)
-        try:
-            hoja1 = wb["1"]
-            st.success("Procesando Hoja 1...")
-            
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, txt="Datos de Hoja 1", ln=True, align="L")
-            pdf.ln(2)
-            
-            # [Aquí va tu lógica de procesamiento para Hoja 1]
-            
-        except KeyError:
-            st.warning("Hoja '1' no encontrada, omitiendo...")
         
-        # [Repite el patrón para las otras hojas]
-
-        # Guardar PDF en memoria
+        # Procesar hoja 1 (ejemplo básico)
+        if "1" in wb.sheetnames:
+            sheet = wb["1"]
+            pdf.set_font("Arial", "B", 16)
+            pdf.cell(0, 10, "Datos de la Empresa", ln=1)
+            
+            # Extraer datos clave (ajusta según tu estructura)
+            datos = {
+                "Razón Social": sheet["E15"].value,
+                "RUT": sheet["L15"].value,
+                "Actividad": sheet["E17"].value
+            }
+            
+            pdf.set_font("Arial", "", 12)
+            for k, v in datos.items():
+                if v:  # Solo mostrar si hay valor
+                    pdf.cell(0, 10, f"{k}: {v}", ln=1)
+        
+        # Convertir PDF a bytes para descarga
         pdf_bytes = BytesIO()
         pdf.output(pdf_bytes)
         pdf_bytes.seek(0)
-        
-        # Eliminar el archivo temporal
-        os.unlink(tmp_path)
-        
         return pdf_bytes
-
+        
     except Exception as e:
-        st.error(f"Error al procesar el archivo: {str(e)}")
-        if 'tmp_path' in locals() and os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+        st.error(f"Error crítico: {str(e)}")
         return None
 
-# Interfaz de usuario
-uploaded_file = st.file_uploader("Sube tu archivo Excel (.xlsx)", type=["xlsx"])
+# Interfaz de usuario mejorada
+st.sidebar.header("Configuración")
+uploaded_file = st.file_uploader("Sube tu archivo Excel", type=["xlsx"])
 
-if uploaded_file is not None:
-    if st.button("Generar PDF"):
-        with st.spinner("Procesando archivo..."):
-            pdf_bytes = process_excel_to_pdf(uploaded_file)
+if uploaded_file:
+    st.success(f"Archivo {uploaded_file.name} cargado correctamente")
+    
+    if st.button("Generar Informe PDF", type="primary"):
+        with st.spinner("Procesando..."):
+            result = excel_to_pdf(uploaded_file)
             
-            if pdf_bytes:
-                st.success("¡PDF generado con éxito!")
+            if result:
+                st.balloons()
+                st.success("Informe generado con éxito!")
+                
+                # Botón de descarga
                 st.download_button(
-                    label="⬇️ Descargar PDF",
-                    data=pdf_bytes,
-                    file_name=f"{os.path.splitext(uploaded_file.name)[0]}_reporte.pdf",
+                    label="Descargar PDF",
+                    data=result,
+                    file_name=f"informe_{os.path.splitext(uploaded_file.name)[0]}.pdf",
                     mime="application/pdf"
                 )
+                
+                # Vista previa (primeras páginas)
+                with st.expander("Vista previa del PDF"):
+                    st.write("El PDF contiene los siguientes datos:")
+                    # Aquí podrías mostrar un resumen de los datos procesados
             else:
-                st.error("No se pudo generar el PDF")
+                st.error("No se pudo generar el PDF. Verifica el formato del archivo.")
+
+# Información adicional
+st.sidebar.markdown("""
+**Instrucciones:**
+1. Sube tu archivo Excel (.xlsx)
+2. Haz clic en 'Generar Informe PDF'
+3. Descarga el resultado
+""")
