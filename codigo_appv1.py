@@ -2,6 +2,7 @@ import streamlit as st
 import openpyxl
 from fpdf import FPDF
 from io import BytesIO
+import os
 
 # Configuración de la aplicación
 st.set_page_config(page_title="Excel a PDF", layout="wide")
