@@ -258,7 +258,7 @@ def excel_a_estructura_json(uploaded_excel_file):
 
 # --- Interfaz de Usuario y Lógica Principal de Streamlit ---
 st.set_page_config(page_title="Generador de Informes TMERT", layout="wide")
-st.title("Generador Dinámico de Informes TMERT")
+st.title("Generador de Informes TMERT - Riesgo Postural (Método REBA)" - Desarrollado por Mauricio Reyes González
 
 st.sidebar.header("1. Cargar Archivos")
 uploaded_excel = st.sidebar.file_uploader("Cargar Matriz TMERT (Excel)", type=["xlsx"])
