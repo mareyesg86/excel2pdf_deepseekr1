@@ -212,10 +212,10 @@ with col_manual:
     rut_ergonomo = st.text_input("RUT de Ergónomo:", key="rut_ergonomo")
     correo_ergonomo = st.text_input("Correo de Ergónomo:", key="mail_ergonomo")
     fecha_visita_empresa_input = st.date_input("Fecha de Visita a Empresa:", value=None, help="Dejar en blanco si no aplica.", key="fecha_visita")
-    horas_semanales_experto = st.text_input("Horas semanales de Experto Empresa:", key="hrs_experto")
-    fecha_inicio_ct_input = st.date_input("Fecha Inicio CT (Contrato/Tarea):", value=None, help="Dejar en blanco si no aplica.", key="fecha_inicio_ct")
+    horas_semanales_experto = st.text_input("Horas semanales Experto Empresa:", key="hrs_experto")
+    fecha_inicio_ct_input = st.date_input("Fecha Inicio CT:", value=None, help="Dejar en blanco si no aplica.", key="fecha_inicio_ct")
     fecha_termino_conocido_ct_input = st.date_input("Fecha Término conocido CT:", value=None, help="Dejar en blanco si no aplica.", key="fecha_termino_ct")
-    fecha_termino_informe_input = st.date_input("Fecha Término (Informe):", value=None, help="Dejar en blanco si no aplica.", key="fecha_termino_informe")
+    fecha_termino_informe_input = st.date_input("Fecha Término:", value=None, help="Dejar en blanco si no aplica.", key="fecha_termino_informe")
     
     st.markdown("---") # Separador visual
     reglamento_hs = st.selectbox("Reglamento HS:", options=opciones_si_no, key="reg_hs")
