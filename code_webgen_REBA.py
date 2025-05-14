@@ -12,7 +12,6 @@ from io import BytesIO
 
 # --- Función para Normalizar Claves ---
 def normalize_key(text):
-    # ... (código de normalize_key sin cambios) ...
     if not isinstance(text, str):
         text = str(text)
     text = text.lower()
@@ -28,7 +27,6 @@ def normalize_key(text):
 
 # --- Función para Procesar y Enriquecer Datos ---
 def procesar_y_enriquecer_datos(datos_crudos):
-    # ... (código de procesar_y_enriquecer_datos sin cambios) ...
     if not datos_crudos:
         return None
     datos_procesados = datos_crudos.copy()
@@ -54,7 +52,6 @@ def procesar_y_enriquecer_datos(datos_crudos):
 
 # --- Función para Generar el DOCX en memoria ---
 def generar_docx_en_memoria(plantilla_bytes, contexto):
-    # ... (código de generar_docx_en_memoria sin cambios) ...
     try:
         doc = DocxTemplate(plantilla_bytes)
         doc.render(contexto)
@@ -69,7 +66,6 @@ def generar_docx_en_memoria(plantilla_bytes, contexto):
 
 # --- Función para Procesar el Excel a la Estructura JSON ---
 def excel_a_estructura_json(uploaded_excel_file):
-    # ... (código de excel_a_estructura_json sin cambios, asegúrate que esté completo) ...
     if uploaded_excel_file is None:
         return None
     try:
@@ -189,16 +185,14 @@ def excel_a_estructura_json(uploaded_excel_file):
     return datos_para_json
 
 # --- Interfaz de Usuario y Lógica Principal de Streamlit ---
-st.set_page_config(page_title="Generador Informes TMERT", layout="wide")
-st.title("Generador Dinámico de Informes TMERT 📄")
+st.set_page_config(page_title="Generador Informes TMERT versión borrador", layout="wide")
+st.title("Desarrollado por Mauricio Reyes Gónzalez")
 
-# Definir opciones para selectbox ANTES de usarlas
 opciones_si_no = ["", "Si", "No"]
 opciones_rol_empresa = ["", "Empresa principal", "Contratista", "Subcontratista", "Servicios Transitorios"]
 agentes_para_filtro = ["Postura", "Repetitividad", "MMC LDT", "MMC EA", "MMP", "Vibración MB", "Vibración CC"]
 
-
-col_carga, col_manual, col_accion = st.columns([2, 3, 2]) # Ajustar anchos de columna
+col_carga, col_manual, col_accion = st.columns([2, 3, 2])
 
 with col_carga:
     st.subheader("1. Cargar Archivos 📤")
@@ -207,17 +201,16 @@ with col_carga:
 
 with col_manual:
     st.subheader("2. Datos Manuales (Opcional) ✍️")
-    numero_informe = st.text_input("Número de Informe Técnico:", key="num_informe")
+    numero_informe = st.text_input("Número de Informe Técnico:", key="num_informe") # Captura para nombre de archivo
     nombre_ergonomo = st.text_input("Nombre de Ergónomo:", key="nom_ergonomo")
     rut_ergonomo = st.text_input("RUT de Ergónomo:", key="rut_ergonomo")
     correo_ergonomo = st.text_input("Correo de Ergónomo:", key="mail_ergonomo")
     fecha_visita_empresa_input = st.date_input("Fecha de Visita a Empresa:", value=None, help="Dejar en blanco si no aplica.", key="fecha_visita")
-    horas_semanales_experto = st.text_input("Horas semanales Experto Empresa:", key="hrs_experto")
-    fecha_inicio_ct_input = st.date_input("Fecha Inicio CT:", value=None, help="Dejar en blanco si no aplica.", key="fecha_inicio_ct")
+    horas_semanales_experto = st.text_input("Horas semanales de Experto Empresa:", key="hrs_experto")
+    fecha_inicio_ct_input = st.date_input("Fecha Inicio CT (Contrato/Tarea):", value=None, help="Dejar en blanco si no aplica.", key="fecha_inicio_ct")
     fecha_termino_conocido_ct_input = st.date_input("Fecha Término conocido CT:", value=None, help="Dejar en blanco si no aplica.", key="fecha_termino_ct")
-    fecha_termino_informe_input = st.date_input("Fecha Término:", value=None, help="Dejar en blanco si no aplica.", key="fecha_termino_informe")
-    
-    st.markdown("---") # Separador visual
+    fecha_termino_informe_input = st.date_input("Fecha Término (Informe):", value=None, help="Dejar en blanco si no aplica.", key="fecha_termino_informe")
+    st.markdown("---")
     reglamento_hs = st.selectbox("Reglamento HS:", options=opciones_si_no, key="reg_hs")
     depto_preventivo = st.selectbox("Depto. Preventivo:", options=opciones_si_no, key="depto_prev")
     rol_empresa_ct = st.selectbox("Rol empresa en CT:", options=opciones_rol_empresa, key="rol_empresa")
@@ -227,13 +220,11 @@ with col_manual:
 with col_accion:
     st.subheader("3. Generar Informe ⚙️")
     agente_seleccionado_filtro = st.selectbox(
-        "Filtrar por Factor de Riesgo (Nivel INTERMEDIO):",
-        options=agentes_para_filtro,
-        index=0, 
-        key="agente_filtro"
+        "Filtrar por Factor de Riesgo (Nivel NO CRÍTICO-INTERMEDIO):",
+        options=agentes_para_filtro, index=0, key="agente_filtro"
     )
     
-    if st.button(f"🚀 Procesar y Generar Informe", key="generate_button"): # Botón más genérico
+    if st.button(f"🚀 Procesar y Generar Informe", key="generate_button"):
         if uploaded_excel and uploaded_template:
             with st.spinner("⚙️ Procesando Excel..."):
                 datos_crudos_json = excel_a_estructura_json(uploaded_excel)
@@ -243,19 +234,11 @@ with col_accion:
                 with st.spinner("🔍 Aplicando cálculos y filtros..."):
                     datos_enriquecidos = procesar_y_enriquecer_datos(datos_crudos_json)
                     clave_agente_filtro_json = normalize_key(agente_seleccionado_filtro)
-
                     puestos_originales = datos_enriquecidos.get('puestos_trabajo_detalle', [])
                     resumen_original = datos_enriquecidos.get('resumen_global_riesgos_tabla', [])
-
-                    puestos_filtrados = [
-                        puesto for puesto in puestos_originales
-                        if puesto.get('niveles_riesgo_agentes', {}).get(clave_agente_filtro_json) == 'INTERMEDIO'
-                    ]
+                    puestos_filtrados = [puesto for puesto in puestos_originales if puesto.get('niveles_riesgo_agentes', {}).get(clave_agente_filtro_json) == 'INTERMEDIO']
                     numeros_puestos_filtrados = {puesto.get(normalize_key('N°')) for puesto in puestos_filtrados}
-                    resumen_filtrado = [
-                        resumen for resumen in resumen_original
-                        if resumen.get('nro') in numeros_puestos_filtrados
-                    ]
+                    resumen_filtrado = [resumen for resumen in resumen_original if resumen.get('nro') in numeros_puestos_filtrados]
                     st.info(f"📊 Filtro aplicado: Se incluirán {len(puestos_filtrados)} puestos con riesgo de {agente_seleccionado_filtro} INTERMEDIO.")
 
                     contexto_final = {
@@ -263,8 +246,8 @@ with col_accion:
                         'informacion_general': datos_enriquecidos.get('informacion_general', {}),
                         'puestos_trabajo_detalle': puestos_filtrados,
                         'resumen_global_riesgos_tabla': resumen_filtrado,
-                        'fecha_actual_reporte': datetime.now().strftime("%d de %B de %Y"),
-                        'numero_informe_tecnico': numero_informe,
+                        'fecha_actual_reporte': datetime.now().strftime("%d-%m-%Y"),
+                        'numero_informe_tecnico': numero_informe, # Usar la variable capturada del input
                         'nombre_ergonomo': nombre_ergonomo,
                         'rut_ergonomo': rut_ergonomo,
                         'correo_ergonomo': correo_ergonomo,
@@ -286,14 +269,22 @@ with col_accion:
                     
                     if informe_bytes:
                         base_name_excel = os.path.splitext(uploaded_excel.name)[0]
-                        nombre_archivo_salida = f"Informe_TMERT_{base_name_excel}_{agente_seleccionado_filtro.replace(' ','_')}_Intermedio.docx"
+                        num_informe_para_nombre = numero_informe.strip() # Usar la variable capturada
+                        
+                        if num_informe_para_nombre:
+                            prefijo_nombre = f"Informe_TMERT_Nro_{num_informe_para_nombre.replace('/', '_').replace(' ', '_')}"
+                        else:
+                            nombre_excel_limpio = base_name_excel.replace(' ', '_')
+                            prefijo_nombre = f"Informe_TMERT_{nombre_excel_limpio}"
+                        
+                        nombre_archivo_salida = f"borrador_IT_{prefijo_nombre}_{agente_seleccionado_filtro.replace(' ','_')}.docx"
                         
                         st.download_button(
-                            label=f"📥 Descargar Informe ({agente_seleccionado_filtro} INTERMEDIO)",
+                            label=f"📥 Descargar Informe borrador ({agente_seleccionado_filtro})",
                             data=informe_bytes,
                             file_name=nombre_archivo_salida,
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                            key="download_button"
+                            key="download_button_final"
                         )
                         st.success("🎉 ¡Informe Word generado!")
                     else:
@@ -302,8 +293,3 @@ with col_accion:
                 st.error("❌ No se pudo procesar el archivo Excel.")
         else:
             st.warning("⚠️ Por favor, carga el archivo Excel y la plantilla Word.")
-
-# Opcional: Mostrar el JSON procesado para depuración
-# if 'contexto_final' in locals(): # Verificar si contexto_final existe
-#     if st.checkbox("Mostrar datos JSON completos para el informe (depuración)", key="show_json_checkbox"):
-#         st.json(contexto_final)
