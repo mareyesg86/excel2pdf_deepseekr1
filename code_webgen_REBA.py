@@ -1,10 +1,10 @@
 import streamlit as st
 import openpyxl
-# import pandas as pd # Descomentado si alguna función interna lo usa
+# import pandas as pd
 import openpyxl.utils
 import os
 import json
-from datetime import datetime, date # Añadido date para el input de fecha
+from datetime import datetime, date
 import traceback
 import re
 from docxtpl import DocxTemplate
@@ -12,6 +12,7 @@ from io import BytesIO
 
 # --- Función para Normalizar Claves ---
 def normalize_key(text):
+    # ... (código de normalize_key sin cambios) ...
     if not isinstance(text, str):
         text = str(text)
     text = text.lower()
@@ -25,8 +26,9 @@ def normalize_key(text):
     text = re.sub(r'_+', '_', text)
     return text.strip("_")
 
-# --- Función para Procesar y Enriquecer Datos (Cálculos de Totales) ---
+# --- Función para Procesar y Enriquecer Datos ---
 def procesar_y_enriquecer_datos(datos_crudos):
+    # ... (código de procesar_y_enriquecer_datos sin cambios) ...
     if not datos_crudos:
         return None
     datos_procesados = datos_crudos.copy()
@@ -37,12 +39,12 @@ def procesar_y_enriquecer_datos(datos_crudos):
             mujeres_ct = int(ct.get("nnro_trabajadores_mujeres", 0) or 0)
             ct["total_trabajadores_ct"] = hombres_ct + mujeres_ct
         except ValueError:
-            ct["total_trabajadores_ct"] = "N/A (Error conversión)" # Mejor feedback
+            ct["total_trabajadores_ct"] = "N/A (Error conversión)"
     if "puestos_trabajo_detalle" in datos_procesados:
         for puesto in datos_procesados["puestos_trabajo_detalle"]:
             try:
-                hombres_exp = int(puesto.get("n°_trab_exp_hombre", 0) or 0) # Clave original del JSON
-                mujeres_exp = int(puesto.get("n°_trab_exp_mujer", 0) or 0) # Clave original del JSON
+                hombres_exp = int(puesto.get("n°_trab_exp_hombre", 0) or 0)
+                mujeres_exp = int(puesto.get("n°_trab_exp_mujer", 0) or 0)
                 puesto["total_trabajadores_expuestos_puesto"] = hombres_exp + mujeres_exp
             except ValueError:
                 puesto["total_trabajadores_expuestos_puesto"] = "N/A (Error conversión)"
@@ -52,6 +54,7 @@ def procesar_y_enriquecer_datos(datos_crudos):
 
 # --- Función para Generar el DOCX en memoria ---
 def generar_docx_en_memoria(plantilla_bytes, contexto):
+    # ... (código de generar_docx_en_memoria sin cambios) ...
     try:
         doc = DocxTemplate(plantilla_bytes)
         doc.render(contexto)
@@ -66,6 +69,7 @@ def generar_docx_en_memoria(plantilla_bytes, contexto):
 
 # --- Función para Procesar el Excel a la Estructura JSON ---
 def excel_a_estructura_json(uploaded_excel_file):
+    # ... (código de excel_a_estructura_json sin cambios, asegúrate que esté completo) ...
     if uploaded_excel_file is None:
         return None
     try:
@@ -89,12 +93,11 @@ def excel_a_estructura_json(uploaded_excel_file):
         "resumen_global_riesgos_tabla": []
     }
     mapa_nro_puesto_a_indice_json = {}
-    agentes_riesgo_ordenados = [ # Mantener este orden para la estructura interna
+    agentes_riesgo_ordenados = [
         "Repetitividad", "Postura", "MMC LDT", "MMC EA",
         "MMP", "Vibración MB", "Vibración CC"
     ]
 
-    # Procesamiento Hoja 1
     mapeo_hoja1 = {
         "1. ANTECEDENTES DE LA EMPRESA": {"Razón Social": (15, 'E'), "RUT Empresa": (15, 'L'), "Actividad Económica": (17, 'E'), "Código CIIU": (17, 'L'), "Dirección": (19, 'E'), "Comuna": (19, 'L'), "Nombre Representante Legal": (21, 'E'), "Organismo administrador al que está adherido": (23, 'E'), "Fecha inicio": (23, 'L')},
         "2. CENTRO DE TRABAJO O LUGAR DE TRABAJO": {"Nombre del centro de trabajo": (27, 'E'), "Dirección": (29, 'E'), "Comuna": (29, 'L'), "Nº Trabajadores Hombres": (31, 'G'), "Nº Trabajadores Mujeres": (31, 'L')},
@@ -117,7 +120,6 @@ def excel_a_estructura_json(uploaded_excel_file):
     except KeyError: st.warning("Advertencia: No se encontró la Hoja '1'.")
     except Exception as e: st.error(f"Error procesando Hoja '1': {e}"); traceback.print_exc()
 
-    # Procesamiento Hoja 2
     COL_NRO_H2, COL_AREA_H2, COL_PUESTO_H2 = 2, 3, 4
     try:
         hoja2 = wb["2"]
@@ -138,15 +140,14 @@ def excel_a_estructura_json(uploaded_excel_file):
     except KeyError: st.warning("Advertencia: No se encontró la Hoja '2'.")
     except Exception as e: st.error(f"Error procesando Hoja '2': {e}"); traceback.print_exc()
 
-    # Procesamiento Hojas de Factores
     config_hojas_factores = {
         "4": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[0]), "col_q_idx": 17, "col_x_idx": 24, "r_filas": (14, 116)},
         "5": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[1]), "col_q_idx": 31, "col_x_idx": 49, "r_filas": (17, 116)},
         "6": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[2]), "col_q_idx": 33, "col_x_idx": 56, "r_filas": (18, 118)},
         "7": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[3]), "col_q_idx": 24, "col_x_idx": 41, "r_filas": (17, 117)},
         "8": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[4]), "col_q_idx": 25, "col_x_idx": 41, "r_filas": (17, 117)},
-        "9": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[5]), "col_riesgo_directo_idx": 19, "r_filas": (16, 116)}, # Vibración MB
-        "10": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[6]), "col_riesgo_directo_idx": 22, "r_filas": (16, 116)}  # Vibración CC
+        "9": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[5]), "col_riesgo_directo_idx": 19, "r_filas": (16, 116)},
+        "10": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[6]), "col_riesgo_directo_idx": 22, "r_filas": (16, 116)}
     }
     for num_hoja_str, config in config_hojas_factores.items():
         try:
@@ -189,11 +190,15 @@ def excel_a_estructura_json(uploaded_excel_file):
 
 # --- Interfaz de Usuario y Lógica Principal de Streamlit ---
 st.set_page_config(page_title="Generador Informes TMERT", layout="wide")
-# st.image("ruta/a/tu/logo.png", width=100) # Descomenta y ajusta si tienes un logo
 st.title("Generador Dinámico de Informes TMERT 📄")
 
-# --- Columnas para organizar la interfaz ---
-col_carga, col_manual, col_accion = st.columns([1,1,1])
+# Definir opciones para selectbox ANTES de usarlas
+opciones_si_no = ["", "Si", "No"]
+opciones_rol_empresa = ["", "Empresa principal", "Contratista", "Subcontratista", "Servicios Transitorios"]
+agentes_para_filtro = ["Postura", "Repetitividad", "MMC LDT", "MMC EA", "MMP", "Vibración MB", "Vibración CC"]
+
+
+col_carga, col_manual, col_accion = st.columns([2, 3, 2]) # Ajustar anchos de columna
 
 with col_carga:
     st.subheader("1. Cargar Archivos 📤")
@@ -202,46 +207,41 @@ with col_carga:
 
 with col_manual:
     st.subheader("2. Datos Manuales (Opcional) ✍️")
-    # Datos de texto libre
     numero_informe = st.text_input("Número de Informe Técnico:", key="num_informe")
     nombre_ergonomo = st.text_input("Nombre de Ergónomo:", key="nom_ergonomo")
     rut_ergonomo = st.text_input("RUT de Ergónomo:", key="rut_ergonomo")
     correo_ergonomo = st.text_input("Correo de Ergónomo:", key="mail_ergonomo")
-    fecha_visita_empresa_input = st.date_input("Fecha de Visita a Empresa:", value=None, key="fecha_visita") # value=None para que sea opcional
+    fecha_visita_empresa_input = st.date_input("Fecha de Visita a Empresa:", value=None, help="Dejar en blanco si no aplica.", key="fecha_visita")
     horas_semanales_experto = st.text_input("Horas semanales de Experto Empresa:", key="hrs_experto")
-    fecha_inicio_ct_input = st.date_input("Fecha Inicio CT (Contrato/Tarea):", value=None, key="fecha_inicio_ct")
-    fecha_termino_conocido_ct_input = st.date_input("Fecha Término conocido CT:", value=None, key="fecha_termino_ct")
-    fecha_termino_informe_input = st.date_input("Fecha Término (Informe):", value=None, key="fecha_termino_informe")
-
-    # Datos con opciones
-    opciones_si_no = ["", "Si", "No"] # Añadir opción vacía para "no seleccionado"
-    reglamento_hs = st.selectbox("Reglamento HS:", options_si_no, key="reg_hs")
-    depto_preventivo = st.selectbox("Depto. Preventivo:", options_si_no, key="depto_prev")
-    rol_empresa_ct = st.selectbox("Rol empresa en CT:", options=["", "Empresa principal", "Contratista", "Subcontratista", "Servicios Transitorios"], key="rol_empresa")
-    comite_paritario = st.selectbox("Comité Paritario:", options_si_no, key="comite_par")
-    experto_prevencion = st.selectbox("Experto en prevención:", options_si_no, key="exp_prev")
+    fecha_inicio_ct_input = st.date_input("Fecha Inicio CT (Contrato/Tarea):", value=None, help="Dejar en blanco si no aplica.", key="fecha_inicio_ct")
+    fecha_termino_conocido_ct_input = st.date_input("Fecha Término conocido CT:", value=None, help="Dejar en blanco si no aplica.", key="fecha_termino_ct")
+    fecha_termino_informe_input = st.date_input("Fecha Término (Informe):", value=None, help="Dejar en blanco si no aplica.", key="fecha_termino_informe")
+    
+    st.markdown("---") # Separador visual
+    reglamento_hs = st.selectbox("Reglamento HS:", options=opciones_si_no, key="reg_hs")
+    depto_preventivo = st.selectbox("Depto. Preventivo:", options=opciones_si_no, key="depto_prev")
+    rol_empresa_ct = st.selectbox("Rol empresa en CT:", options=opciones_rol_empresa, key="rol_empresa")
+    comite_paritario = st.selectbox("Comité Paritario:", options=opciones_si_no, key="comite_par")
+    experto_prevencion = st.selectbox("Experto en prevención:", options=opciones_si_no, key="exp_prev")
 
 with col_accion:
     st.subheader("3. Generar Informe ⚙️")
-    # Selección dinámica del factor de riesgo
-    agentes_para_filtro = ["Postura", "Repetitividad", "MMC LDT", "MMC EA", "MMP", "Vibración MB", "Vibración CC"]
     agente_seleccionado_filtro = st.selectbox(
-        "Seleccionar Factor de Riesgo para filtrar (Nivel INTERMEDIO):",
+        "Filtrar por Factor de Riesgo (Nivel INTERMEDIO):",
         options=agentes_para_filtro,
-        index=0, # Por defecto selecciona el primero (Postura)
+        index=0, 
         key="agente_filtro"
     )
     
-    if st.button(f"🚀 Procesar y Generar Informe (Filtrado por {agente_seleccionado_filtro} INTERMEDIO)", key="generate_button"):
+    if st.button(f"🚀 Procesar y Generar Informe", key="generate_button"): # Botón más genérico
         if uploaded_excel and uploaded_template:
             with st.spinner("⚙️ Procesando Excel..."):
                 datos_crudos_json = excel_a_estructura_json(uploaded_excel)
             
             if datos_crudos_json:
-                st.success("✅ Estructura JSON generada desde Excel.")
+                st.success("✅ Estructura JSON generada.")
                 with st.spinner("🔍 Aplicando cálculos y filtros..."):
                     datos_enriquecidos = procesar_y_enriquecer_datos(datos_crudos_json)
-                    
                     clave_agente_filtro_json = normalize_key(agente_seleccionado_filtro)
 
                     puestos_originales = datos_enriquecidos.get('puestos_trabajo_detalle', [])
@@ -264,7 +264,6 @@ with col_accion:
                         'puestos_trabajo_detalle': puestos_filtrados,
                         'resumen_global_riesgos_tabla': resumen_filtrado,
                         'fecha_actual_reporte': datetime.now().strftime("%d de %B de %Y"),
-                        # Nuevos datos manuales
                         'numero_informe_tecnico': numero_informe,
                         'nombre_ergonomo': nombre_ergonomo,
                         'rut_ergonomo': rut_ergonomo,
@@ -304,8 +303,7 @@ with col_accion:
         else:
             st.warning("⚠️ Por favor, carga el archivo Excel y la plantilla Word.")
 
-st.markdown("---")
 # Opcional: Mostrar el JSON procesado para depuración
-# if 'datos_json_para_contexto' in st.session_state and st.session_state.datos_json_para_contexto:
+# if 'contexto_final' in locals(): # Verificar si contexto_final existe
 #     if st.checkbox("Mostrar datos JSON completos para el informe (depuración)", key="show_json_checkbox"):
-#         st.json(st.session_state.datos_json_para_contexto) # Esto mostraría el contexto final
+#         st.json(contexto_final)
