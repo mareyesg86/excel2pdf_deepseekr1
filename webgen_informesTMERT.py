@@ -185,8 +185,8 @@ def excel_a_estructura_json(uploaded_excel_file):
     return datos_para_json
 
 # --- Interfaz de Usuario y Lógica Principal de Streamlit ---
-st.set_page_config(page_title="Generador Informes Ev. Inicial Cuantitativa "pre-borrador" PROTOCOLO TMERT", layout="wide")
-st.title("Generador Informes Ev. Inicial Cuantitativa "pre-borrador" PROTOCOLO TMERT 📄 - Desarrollado por Mauricio Reyes González")
+st.set_page_config(page_title="Generador Informes Ev. Inicial Cuantitativa pre-borrador PROTOCOLO TMERT", layout="wide")
+st.title("Generador Informes Ev. Inicial Cuantitativa pre-borrador PROTOCOLO TMERT 📄 - Desarrollado por Mauricio Reyes González")
 
 opciones_si_no = ["", "Si", "No"]
 opciones_rol_empresa = ["", "Empresa principal", "Contratista", "Subcontratista", "Servicios Transitorios"]
