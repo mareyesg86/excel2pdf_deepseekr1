@@ -185,8 +185,8 @@ def excel_a_estructura_json(uploaded_excel_file):
     return datos_para_json
 
 # --- Interfaz de Usuario y Lógica Principal de Streamlit ---
-st.set_page_config(page_title="Generador Informes TMERT", layout="wide")
-st.title("Generador Dinámico de Informes TMERT 📄")
+st.set_page_config(page_title="Generador Informes Ev. Inicial Cuantitativa "pre-borrador" PROTOCOLO TMERT", layout="wide")
+st.title("Generador Informes Ev. Inicial Cuantitativa "pre-borrador" PROTOCOLO TMERT 📄 - Desarrollado por Mauricio Reyes González")
 
 opciones_si_no = ["", "Si", "No"]
 opciones_rol_empresa = ["", "Empresa principal", "Contratista", "Subcontratista", "Servicios Transitorios"]
@@ -196,11 +196,11 @@ col_carga, col_manual, col_accion = st.columns([2, 3, 2])
 
 with col_carga:
     st.subheader("1. Cargar Archivo Excel 📤")
-    uploaded_excel = st.file_uploader("Matriz TMERT (Excel)", type=["xlsx"], key="excel_uploader")
+    uploaded_excel = st.file_uploader("Matriz TMERT (Excel version 7 de ACHS)", type=["xlsx"], key="excel_uploader")
     # El file_uploader para la plantilla Word se elimina, ya que se cargará desde el repo
 
 with col_manual:
-    st.subheader("2. Datos Manuales (Opcional) ✍️")
+    st.subheader("2. Ingresar Datos Manuales (Opcional) ✍️")
     numero_informe = st.text_input("Número de Informe Técnico:", key="num_informe")
     nombre_ergonomo = st.text_input("Nombre de Ergónomo:", key="nom_ergonomo")
     rut_ergonomo = st.text_input("RUT de Ergónomo:", key="rut_ergonomo")
@@ -220,7 +220,7 @@ with col_manual:
 with col_accion:
     st.subheader("3. Generar Informe ⚙️")
     agente_seleccionado_filtro = st.selectbox(
-        "Filtrar por Factor de Riesgo (Nivel INTERMEDIO):",
+        "Filtrar por Factor de Riesgo (Nivel de riesgo "INTERMEDIO-NO CRÍTICO"):",
         options=agentes_para_filtro, index=0, key="agente_filtro"
     )
     
