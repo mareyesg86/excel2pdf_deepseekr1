@@ -220,7 +220,7 @@ with col_manual:
 with col_accion:
     st.subheader("3. Generar Informe ⚙️")
     agente_seleccionado_filtro = st.selectbox(
-        "Filtrar por Factor de Riesgo (Nivel de riesgo "INTERMEDIO-NO CRÍTICO"):",
+        "Filtrar por Factor de Riesgo (Nivel de riesgo INTERMEDIO-NO CRÍTICO):",
         options=agentes_para_filtro, index=0, key="agente_filtro"
     )
     
