@@ -1,12 +1,12 @@
 import streamlit as st
 import openpyxl
-# import pandas as pd
+# import pandas as pd # Descomentado si alguna función interna lo usa
 import openpyxl.utils
 import os
 import json
-from datetime import datetime, date
+from datetime import datetime, date # Añadido date para el input de fecha
 import traceback
-import re
+import re # Para normalize_key
 from docxtpl import DocxTemplate
 from io import BytesIO
 
@@ -25,7 +25,7 @@ def normalize_key(text):
     text = re.sub(r'_+', '_', text)
     return text.strip("_")
 
-# --- Función para Procesar y Enriquecer Datos ---
+# --- Función para Procesar y Enriquecer Datos (Cálculos de Totales) ---
 def procesar_y_enriquecer_datos(datos_crudos):
     if not datos_crudos:
         return None
@@ -51,10 +51,10 @@ def procesar_y_enriquecer_datos(datos_crudos):
     return datos_procesados
 
 # --- Función para Generar el DOCX en memoria ---
-def generar_docx_en_memoria(plantilla_bytes, contexto):
+def generar_docx_en_memoria(plantilla_bytes_io, contexto_render): # Renombrado para claridad
     try:
-        doc = DocxTemplate(plantilla_bytes)
-        doc.render(contexto)
+        doc = DocxTemplate(plantilla_bytes_io) # DocxTemplate espera un path o un file-like object
+        doc.render(contexto_render)
         file_stream = BytesIO()
         doc.save(file_stream)
         file_stream.seek(0)
@@ -142,8 +142,8 @@ def excel_a_estructura_json(uploaded_excel_file):
         "6": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[2]), "col_q_idx": 33, "col_x_idx": 56, "r_filas": (18, 118)},
         "7": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[3]), "col_q_idx": 24, "col_x_idx": 41, "r_filas": (17, 117)},
         "8": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[4]), "col_q_idx": 25, "col_x_idx": 41, "r_filas": (17, 117)},
-        "9": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[5]), "col_riesgo_directo_idx": 19, "r_filas": (16, 116)},
-        "10": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[6]), "col_riesgo_directo_idx": 22, "r_filas": (16, 116)}
+        "9": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[5]), "col_riesgo_directo_idx": 19, "r_filas": (16, 116)}, # Vibración MB
+        "10": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[6]), "col_riesgo_directo_idx": 22, "r_filas": (16, 116)}  # Vibración CC
     }
     for num_hoja_str, config in config_hojas_factores.items():
         try:
@@ -185,8 +185,8 @@ def excel_a_estructura_json(uploaded_excel_file):
     return datos_para_json
 
 # --- Interfaz de Usuario y Lógica Principal de Streamlit ---
-st.set_page_config(page_title="Generador Informes TMERT versión borrador", layout="wide")
-st.title("Desarrollado por Mauricio Reyes Gónzalez")
+st.set_page_config(page_title="Generador Informes TMERT", layout="wide")
+st.title("Generador Dinámico de Informes TMERT 📄")
 
 opciones_si_no = ["", "Si", "No"]
 opciones_rol_empresa = ["", "Empresa principal", "Contratista", "Subcontratista", "Servicios Transitorios"]
@@ -195,13 +195,13 @@ agentes_para_filtro = ["Postura", "Repetitividad", "MMC LDT", "MMC EA", "MMP", "
 col_carga, col_manual, col_accion = st.columns([2, 3, 2])
 
 with col_carga:
-    st.subheader("1. Cargar Archivos 📤")
+    st.subheader("1. Cargar Archivo Excel 📤")
     uploaded_excel = st.file_uploader("Matriz TMERT (Excel)", type=["xlsx"], key="excel_uploader")
-    uploaded_template = st.file_uploader("Plantilla Word (.docx)", type=["docx"], key="template_uploader")
+    # El file_uploader para la plantilla Word se elimina, ya que se cargará desde el repo
 
 with col_manual:
     st.subheader("2. Datos Manuales (Opcional) ✍️")
-    numero_informe = st.text_input("Número de Informe Técnico:", key="num_informe") # Captura para nombre de archivo
+    numero_informe = st.text_input("Número de Informe Técnico:", key="num_informe")
     nombre_ergonomo = st.text_input("Nombre de Ergónomo:", key="nom_ergonomo")
     rut_ergonomo = st.text_input("RUT de Ergónomo:", key="rut_ergonomo")
     correo_ergonomo = st.text_input("Correo de Ergónomo:", key="mail_ergonomo")
@@ -220,12 +220,25 @@ with col_manual:
 with col_accion:
     st.subheader("3. Generar Informe ⚙️")
     agente_seleccionado_filtro = st.selectbox(
-        "Filtrar por Factor de Riesgo (Nivel NO CRÍTICO-INTERMEDIO):",
+        "Filtrar por Factor de Riesgo (Nivel INTERMEDIO):",
         options=agentes_para_filtro, index=0, key="agente_filtro"
     )
     
+    # --- MAPEO DE AGENTE A NOMBRE DE ARCHIVO DE PLANTILLA ---
+    # !!! IMPORTANTE: AJUSTA ESTE MAPEO SEGÚN TUS NOMBRES DE ARCHIVO Y AGENTES !!!
+    MAPEO_AGENTE_A_PLANTILLA = {
+        normalize_key("Repetitividad"): "plantillas/1_ART.docx", # CONFIRMA SI 1_ART.docx ES PARA REPETITIVIDAD
+        normalize_key("Postura"): "plantillas/2_REBA.docx",       # CONFIRMA SI 2_REBA.docx ES PARA POSTURA
+        normalize_key("MMC LDT"): "plantillas/3_MAC.docx",
+        normalize_key("MMC EA"): "plantillas/4_RAPP.docx",
+        # Añade aquí los mapeos para las otras plantillas cuando las tengas
+        # normalize_key("MMP"): "plantillas/plantilla_mmp.docx",
+        # normalize_key("Vibración MB"): "plantillas/plantilla_vibracion_mb.docx",
+        # normalize_key("Vibración CC"): "plantillas/plantilla_vibracion_cc.docx"
+    }
+    
     if st.button(f"🚀 Procesar y Generar Informe", key="generate_button"):
-        if uploaded_excel and uploaded_template:
+        if uploaded_excel: # Solo necesitamos el Excel ahora
             with st.spinner("⚙️ Procesando Excel..."):
                 datos_crudos_json = excel_a_estructura_json(uploaded_excel)
             
@@ -246,8 +259,8 @@ with col_accion:
                         'informacion_general': datos_enriquecidos.get('informacion_general', {}),
                         'puestos_trabajo_detalle': puestos_filtrados,
                         'resumen_global_riesgos_tabla': resumen_filtrado,
-                        'fecha_actual_reporte': datetime.now().strftime("%d-%m-%Y"),
-                        'numero_informe_tecnico': numero_informe, # Usar la variable capturada del input
+                        'fecha_actual_reporte': datetime.now().strftime("%d de %B de %Y"),
+                        'numero_informe_tecnico': numero_informe,
                         'nombre_ergonomo': nombre_ergonomo,
                         'rut_ergonomo': rut_ergonomo,
                         'correo_ergonomo': correo_ergonomo,
@@ -263,33 +276,53 @@ with col_accion:
                         'experto_en_prevencion': experto_prevencion
                     }
                 
-                with st.spinner("📄 Generando informe Word..."):
-                    plantilla_bytes = BytesIO(uploaded_template.getvalue())
-                    informe_bytes = generar_docx_en_memoria(plantilla_bytes, contexto_final)
-                    
-                    if informe_bytes:
-                        base_name_excel = os.path.splitext(uploaded_excel.name)[0]
-                        num_informe_para_nombre = numero_informe.strip() # Usar la variable capturada
-                        
-                        if num_informe_para_nombre:
-                            prefijo_nombre = f"Informe_TMERT_Nro_{num_informe_para_nombre.replace('/', '_').replace(' ', '_')}"
-                        else:
-                            nombre_excel_limpio = base_name_excel.replace(' ', '_')
-                            prefijo_nombre = f"Informe_TMERT_{nombre_excel_limpio}"
-                        
-                        nombre_archivo_salida = f"borrador_IT_{prefijo_nombre}_{agente_seleccionado_filtro.replace(' ','_')}.docx"
-                        
-                        st.download_button(
-                            label=f"📥 Descargar Informe borrador ({agente_seleccionado_filtro})",
-                            data=informe_bytes,
-                            file_name=nombre_archivo_salida,
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                            key="download_button_final"
-                        )
-                        st.success("🎉 ¡Informe Word generado!")
-                    else:
-                        st.error("❌ No se pudo generar el informe Word.")
+                # --- Cargar la plantilla Word seleccionada dinámicamente ---
+                nombre_agente_norm_para_plantilla = normalize_key(agente_seleccionado_filtro)
+                ruta_plantilla_en_repo = MAPEO_AGENTE_A_PLANTILLA.get(nombre_agente_norm_para_plantilla)
+
+                if not ruta_plantilla_en_repo:
+                    st.error(f"❌ No se encontró una plantilla mapeada para el agente: '{agente_seleccionado_filtro}'. Verifica el diccionario 'MAPEO_AGENTE_A_PLANTILLA' en el código y los archivos en la carpeta 'plantillas'.")
+                else:
+                    with st.spinner(f"📄 Cargando plantilla '{ruta_plantilla_en_repo}' y generando informe Word..."):
+                        try:
+                            with open(ruta_plantilla_en_repo, "rb") as f_template:
+                                plantilla_bytes_seleccionada = BytesIO(f_template.read())
+                            
+                            informe_bytes = generar_docx_en_memoria(plantilla_bytes_seleccionada, contexto_final)
+                            
+                            if informe_bytes:
+                                base_name_excel = os.path.splitext(uploaded_excel.name)[0]
+                                num_informe_para_nombre = numero_informe.strip()
+                                
+                                if num_informe_para_nombre:
+                                    prefijo_nombre = f"Informe_TMERT_Nro_{num_informe_para_nombre.replace('/', '_').replace(' ', '_')}"
+                                else:
+                                    nombre_excel_limpio = base_name_excel.replace(' ', '_')
+                                    prefijo_nombre = f"Informe_TMERT_{nombre_excel_limpio}"
+                                
+                                nombre_archivo_salida = f"{prefijo_nombre}_{agente_seleccionado_filtro.replace(' ','_')}_Intermedio.docx"
+                                
+                                st.download_button(
+                                    label=f"📥 Descargar Informe ({agente_seleccionado_filtro} INTERMEDIO)",
+                                    data=informe_bytes,
+                                    file_name=nombre_archivo_salida,
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    key="download_button_final_mapeado"
+                                )
+                                st.success("🎉 ¡Informe Word generado!")
+                            else:
+                                st.error("❌ No se pudo generar el informe Word con la plantilla seleccionada.")
+                        except FileNotFoundError:
+                            st.error(f"❌ Error crítico: No se encontró la plantilla '{ruta_plantilla_en_repo}' en el repositorio. Verifica que el archivo exista en la carpeta 'plantillas' y que el nombre en el mapeo sea exacto.")
+                        except Exception as e_template_proc:
+                            st.error(f"❌ Error al cargar o procesar la plantilla específica: {e_template_proc}")
+                            traceback.print_exc()
             else:
                 st.error("❌ No se pudo procesar el archivo Excel.")
         else:
-            st.warning("⚠️ Por favor, carga el archivo Excel y la plantilla Word.")
+            st.warning("⚠️ Por favor, carga el archivo Excel.")
+
+# Opcional: Mostrar el JSON procesado para depuración
+# if 'contexto_final' in locals():
+#     if st.checkbox("Mostrar datos JSON completos para el informe (depuración)", key="show_json_checkbox"):
+#         st.json(contexto_final)
