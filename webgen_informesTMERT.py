@@ -259,7 +259,7 @@ with col_accion:
                         'informacion_general': datos_enriquecidos.get('informacion_general', {}),
                         'puestos_trabajo_detalle': puestos_filtrados,
                         'resumen_global_riesgos_tabla': resumen_filtrado,
-                        'fecha_actual_reporte': datetime.now().strftime("%d de %B de %Y"),
+                        'fecha_actual_reporte': datetime.now().strftime("%d-%m-%Y"),
                         'numero_informe_tecnico': numero_informe,
                         'nombre_ergonomo': nombre_ergonomo,
                         'rut_ergonomo': rut_ergonomo,
@@ -295,12 +295,12 @@ with col_accion:
                                 num_informe_para_nombre = numero_informe.strip()
                                 
                                 if num_informe_para_nombre:
-                                    prefijo_nombre = f"Informe_TMERT_Nro_{num_informe_para_nombre.replace('/', '_').replace(' ', '_')}"
+                                    prefijo_nombre = f"IT_TMERT_{num_informe_para_nombre.replace('/', '_').replace(' ', '_')}"
                                 else:
                                     nombre_excel_limpio = base_name_excel.replace(' ', '_')
-                                    prefijo_nombre = f"Informe_TMERT_{nombre_excel_limpio}"
+                                    prefijo_nombre = f"IT_TMERT_{nombre_excel_limpio}"
                                 
-                                nombre_archivo_salida = f"{prefijo_nombre}_{agente_seleccionado_filtro.replace(' ','_')}_Intermedio.docx"
+                                nombre_archivo_salida = f"borrador_{prefijo_nombre}_{agente_seleccionado_filtro.replace(' ','_')}.docx"
                                 
                                 st.download_button(
                                     label=f"📥 Descargar Informe ({agente_seleccionado_filtro} INTERMEDIO)",
