@@ -1,12 +1,12 @@
 import streamlit as st
 import openpyxl
-# import pandas as pd # Descomentado si alguna función interna lo usa
-import openpyxl.utils
+# import pandas as pd # No se usa directamente, se puede quitar si no es dependencia de otra cosa
+import openpyxl.utils # Usado en tu código original, lo mantengo
 import os
 import json
-from datetime import datetime, date # Añadido date para el input de fecha
+from datetime import datetime, date # date es necesario para st.date_input
 import traceback
-import re # Para normalize_key
+import re
 from docxtpl import DocxTemplate
 from io import BytesIO
 
@@ -22,14 +22,15 @@ def normalize_key(text):
     }
     for char, replacement in replacements.items():
         text = text.replace(char, replacement)
-    text = re.sub(r'_+', '_', text)
+    text = re.sub(r'_+', '_', text) # Colapsar múltiples guiones bajos
     return text.strip("_")
 
 # --- Función para Procesar y Enriquecer Datos (Cálculos de Totales) ---
 def procesar_y_enriquecer_datos(datos_crudos):
     if not datos_crudos:
         return None
-    datos_procesados = datos_crudos.copy()
+    datos_procesados = datos_crudos.copy() # Trabajar sobre una copia
+    # Calcular total de trabajadores en el centro de trabajo
     if "informacion_general" in datos_procesados and "centro_trabajo" in datos_procesados["informacion_general"]:
         ct = datos_procesados["informacion_general"]["centro_trabajo"]
         try:
@@ -38,11 +39,12 @@ def procesar_y_enriquecer_datos(datos_crudos):
             ct["total_trabajadores_ct"] = hombres_ct + mujeres_ct
         except ValueError:
             ct["total_trabajadores_ct"] = "N/A (Error conversión)"
+    # Calcular total de trabajadores expuestos por cada puesto/caso
     if "puestos_trabajo_detalle" in datos_procesados:
         for puesto in datos_procesados["puestos_trabajo_detalle"]:
             try:
-                hombres_exp = int(puesto.get("n°_trab_exp_hombre", 0) or 0)
-                mujeres_exp = int(puesto.get("n°_trab_exp_mujer", 0) or 0)
+                hombres_exp = int(puesto.get(normalize_key("N° trab exp hombre"), 0) or 0) # Usar clave normalizada
+                mujeres_exp = int(puesto.get(normalize_key("N° trab exp mujer"), 0) or 0) # Usar clave normalizada
                 puesto["total_trabajadores_expuestos_puesto"] = hombres_exp + mujeres_exp
             except ValueError:
                 puesto["total_trabajadores_expuestos_puesto"] = "N/A (Error conversión)"
@@ -51,9 +53,9 @@ def procesar_y_enriquecer_datos(datos_crudos):
     return datos_procesados
 
 # --- Función para Generar el DOCX en memoria ---
-def generar_docx_en_memoria(plantilla_bytes_io, contexto_render): # Renombrado para claridad
+def generar_docx_en_memoria(plantilla_bytes_io, contexto_render):
     try:
-        doc = DocxTemplate(plantilla_bytes_io) # DocxTemplate espera un path o un file-like object
+        doc = DocxTemplate(plantilla_bytes_io)
         doc.render(contexto_render)
         file_stream = BytesIO()
         doc.save(file_stream)
@@ -94,6 +96,7 @@ def excel_a_estructura_json(uploaded_excel_file):
         "MMP", "Vibración MB", "Vibración CC"
     ]
 
+    # Procesamiento Hoja 1
     mapeo_hoja1 = {
         "1. ANTECEDENTES DE LA EMPRESA": {"Razón Social": (15, 'E'), "RUT Empresa": (15, 'L'), "Actividad Económica": (17, 'E'), "Código CIIU": (17, 'L'), "Dirección": (19, 'E'), "Comuna": (19, 'L'), "Nombre Representante Legal": (21, 'E'), "Organismo administrador al que está adherido": (23, 'E'), "Fecha inicio": (23, 'L')},
         "2. CENTRO DE TRABAJO O LUGAR DE TRABAJO": {"Nombre del centro de trabajo": (27, 'E'), "Dirección": (29, 'E'), "Comuna": (29, 'L'), "Nº Trabajadores Hombres": (31, 'G'), "Nº Trabajadores Mujeres": (31, 'L')},
@@ -101,6 +104,7 @@ def excel_a_estructura_json(uploaded_excel_file):
     }
     try:
         hoja1_openpyxl = wb["1"]
+        # st.write("[INFO Hoja 1] Leyendo Hoja 1.") # Descomentar para depurar en Streamlit
         for seccion_titulo, campos in mapeo_hoja1.items():
             for etiqueta, (fila_excel, col_excel_char) in campos.items():
                 valor_crudo_h1 = hoja1_openpyxl[f"{col_excel_char}{fila_excel}"].value
@@ -113,14 +117,16 @@ def excel_a_estructura_json(uploaded_excel_file):
                         datos_para_json["informacion_general"]["centro_trabajo"][clave_json] = valor_str_h1
                     elif seccion_titulo == "3. RESPONSABLE IMPLEMENTACIÓN PROTOCOLO":
                         datos_para_json["informacion_general"]["responsable_protocolo"][clave_json] = valor_str_h1
-    except KeyError: st.warning("Advertencia: No se encontró la Hoja '1'.")
-    except Exception as e: st.error(f"Error procesando Hoja '1': {e}"); traceback.print_exc()
+    except KeyError: st.warning("Advertencia: No se encontró la Hoja '1' en el Excel. Se omitirá esta sección.")
+    except Exception as e: st.error(f"Error procesando Hoja '1' del Excel: {e}"); traceback.print_exc()
 
-    COL_NRO_H2, COL_AREA_H2, COL_PUESTO_H2 = 2, 3, 4
+    # Procesamiento Hoja 2
+    COL_NRO_H2, COL_AREA_H2, COL_PUESTO_H2 = 2, 3, 4 # Columnas B, C, D
     try:
         hoja2 = wb["2"]
         hoja2_headers = ["N°", "Área de trabajo", "Puesto de trabajo", "Tareas del puesto", "Descripción de la tarea", "Horario de funcionamiento", "HHEX dia", "HHEX sem", "N° trab exp hombre", "N° trab exp mujer", "Tipo contrato", "Tipo remuneracion", "Duración (min)", "Pausas", "Rotación", "Equipos - Herramientas", "Características ambientes - espacios trabajo", "Características disposición espacial puesto", "Características herramientas"]
-        for fila_idx in range(13, 114):
+        # st.write("[INFO Hoja 2] Leyendo Hoja 2.")
+        for fila_idx in range(13, 114): # Rango de filas a leer
             nro_puesto_val = str(hoja2.cell(row=fila_idx, column=COL_NRO_H2).value or "").strip()
             val_a_obj = hoja2.cell(row=fila_idx, column=COL_AREA_H2).value
             val_p_obj = hoja2.cell(row=fila_idx, column=COL_PUESTO_H2).value
@@ -133,9 +139,10 @@ def excel_a_estructura_json(uploaded_excel_file):
                 puesto_detalle_json["niveles_riesgo_agentes"] = {normalize_key(agente): "AUSENTE" for agente in agentes_riesgo_ordenados}
                 datos_para_json["puestos_trabajo_detalle"].append(puesto_detalle_json)
                 mapa_nro_puesto_a_indice_json[nro_puesto_val] = len(datos_para_json["puestos_trabajo_detalle"]) - 1
-    except KeyError: st.warning("Advertencia: No se encontró la Hoja '2'.")
-    except Exception as e: st.error(f"Error procesando Hoja '2': {e}"); traceback.print_exc()
+    except KeyError: st.warning("Advertencia: No se encontró la Hoja '2' en el Excel. Se omitirá la caracterización de puestos.")
+    except Exception as e: st.error(f"Error procesando Hoja '2' del Excel: {e}"); traceback.print_exc()
 
+    # Procesamiento Hojas de Factores
     config_hojas_factores = {
         "4": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[0]), "col_q_idx": 17, "col_x_idx": 24, "r_filas": (14, 116)},
         "5": {"nombre_json_agente": normalize_key(agentes_riesgo_ordenados[1]), "col_q_idx": 31, "col_x_idx": 49, "r_filas": (17, 116)},
@@ -148,6 +155,7 @@ def excel_a_estructura_json(uploaded_excel_file):
     for num_hoja_str, config in config_hojas_factores.items():
         try:
             hoja_actual = wb[num_hoja_str]
+            # st.write(f"[INFO Hoja {num_hoja_str}] Leyendo Hoja {num_hoja_str} - Agente: {config['nombre_json_agente']}.")
             COL_NRO_FACTOR, COL_AREA_FACTOR, COL_PUESTO_FACTOR = 2, 3, 4
             for fila_idx in range(config["r_filas"][0], config["r_filas"][1]):
                 nro_puesto_riesgo = str(hoja_actual.cell(row=fila_idx, column=COL_NRO_FACTOR).value or "").strip()
@@ -175,8 +183,10 @@ def excel_a_estructura_json(uploaded_excel_file):
                 if nro_puesto_riesgo in mapa_nro_puesto_a_indice_json:
                     indice_puesto = mapa_nro_puesto_a_indice_json[nro_puesto_riesgo]
                     datos_para_json["puestos_trabajo_detalle"][indice_puesto]["niveles_riesgo_agentes"][config["nombre_json_agente"]] = risk_level_text
-        except KeyError: st.warning(f"Advertencia: No se encontró la Hoja '{num_hoja_str}'.")
-        except Exception as e: st.error(f"Error procesando Hoja '{num_hoja_str}': {e}"); traceback.print_exc()
+                # else:
+                    # st.warning(f"Advertencia: N° de puesto '{nro_puesto_riesgo}' de Hoja {num_hoja_str} (Agente: {config['nombre_json_agente']}) no encontrado en caracterizaciones de Hoja 2.")
+        except KeyError: st.warning(f"Advertencia: No se encontró la Hoja '{num_hoja_str}' en el Excel. Se omitirá este factor de riesgo.")
+        except Exception as e: st.error(f"Error procesando Hoja '{num_hoja_str}' del Excel: {e}"); traceback.print_exc()
 
     for puesto_detalle in datos_para_json["puestos_trabajo_detalle"]:
         item_resumen = {"nro": puesto_detalle.get(normalize_key("N°"), ""), "area": puesto_detalle.get(normalize_key("Área de trabajo"), ""), "puesto": puesto_detalle.get(normalize_key("Puesto de trabajo"), ""), "tarea": puesto_detalle.get(normalize_key("Tareas del puesto"), ""), "niveles_riesgo_agentes": puesto_detalle.get("niveles_riesgo_agentes", {})}
@@ -185,8 +195,8 @@ def excel_a_estructura_json(uploaded_excel_file):
     return datos_para_json
 
 # --- Interfaz de Usuario y Lógica Principal de Streamlit ---
-st.set_page_config(page_title="Generador Informes Ev. Inicial Cuantitativa pre-borrador PROTOCOLO TMERT", layout="wide")
-st.title("Generador Informes Ev. Inicial Cuantitativa pre-borrador PROTOCOLO TMERT 📄 - Desarrollado por Mauricio Reyes González")
+st.set_page_config(page_title='Generador Informes Ev. Inicial Cuantitativa "pre-borrador" PROTOCOLO TMERT', layout="wide") # Corregido
+st.title("Generador Informes Ev. Inicial Cuantitativa \"pre-borrador\" PROTOCOLO TMERT 📄 - Desarrollado por Mauricio Reyes González") # Corregido
 
 opciones_si_no = ["", "Si", "No"]
 opciones_rol_empresa = ["", "Empresa principal", "Contratista", "Subcontratista", "Servicios Transitorios"]
@@ -197,7 +207,6 @@ col_carga, col_manual, col_accion = st.columns([2, 3, 2])
 with col_carga:
     st.subheader("1. Cargar Archivo Excel 📤")
     uploaded_excel = st.file_uploader("Matriz TMERT (Excel version 7 de ACHS)", type=["xlsx"], key="excel_uploader")
-    # El file_uploader para la plantilla Word se elimina, ya que se cargará desde el repo
 
 with col_manual:
     st.subheader("2. Ingresar Datos Manuales (Opcional) ✍️")
@@ -220,25 +229,22 @@ with col_manual:
 with col_accion:
     st.subheader("3. Generar Informe ⚙️")
     agente_seleccionado_filtro = st.selectbox(
-        "Filtrar por Factor de Riesgo (Nivel de riesgo INTERMEDIO-NO CRÍTICO):",
+        'Filtrar por Factor de Riesgo (Nivel de riesgo "INTERMEDIO-NO CRÍTICO"):', # Corregido
         options=agentes_para_filtro, index=0, key="agente_filtro"
     )
     
-    # --- MAPEO DE AGENTE A NOMBRE DE ARCHIVO DE PLANTILLA ---
-    # !!! IMPORTANTE: AJUSTA ESTE MAPEO SEGÚN TUS NOMBRES DE ARCHIVO Y AGENTES !!!
     MAPEO_AGENTE_A_PLANTILLA = {
-        normalize_key("Repetitividad"): "plantillas/1_ART.docx", # CONFIRMA SI 1_ART.docx ES PARA REPETITIVIDAD
-        normalize_key("Postura"): "plantillas/2_REBA.docx",       # CONFIRMA SI 2_REBA.docx ES PARA POSTURA
+        normalize_key("Repetitividad"): "plantillas/1_ART.docx",     # CONFIRMA ESTE NOMBRE DE ARCHIVO
+        normalize_key("Postura"): "plantillas/2_REBA.docx",           # CONFIRMA ESTE NOMBRE DE ARCHIVO
         normalize_key("MMC LDT"): "plantillas/3_MAC.docx",
         normalize_key("MMC EA"): "plantillas/4_RAPP.docx",
-        # Añade aquí los mapeos para las otras plantillas cuando las tengas
-        # normalize_key("MMP"): "plantillas/plantilla_mmp.docx",
+        # normalize_key("MMP"): "plantillas/plantilla_mmp.docx",       # DESCOMENTA Y AJUSTA CUANDO TENGAS ESTA PLANTILLA
         # normalize_key("Vibración MB"): "plantillas/plantilla_vibracion_mb.docx",
         # normalize_key("Vibración CC"): "plantillas/plantilla_vibracion_cc.docx"
     }
     
     if st.button(f"🚀 Procesar y Generar Informe", key="generate_button"):
-        if uploaded_excel: # Solo necesitamos el Excel ahora
+        if uploaded_excel:
             with st.spinner("⚙️ Procesando Excel..."):
                 datos_crudos_json = excel_a_estructura_json(uploaded_excel)
             
@@ -250,7 +256,7 @@ with col_accion:
                     puestos_originales = datos_enriquecidos.get('puestos_trabajo_detalle', [])
                     resumen_original = datos_enriquecidos.get('resumen_global_riesgos_tabla', [])
                     puestos_filtrados = [puesto for puesto in puestos_originales if puesto.get('niveles_riesgo_agentes', {}).get(clave_agente_filtro_json) == 'INTERMEDIO']
-                    numeros_puestos_filtrados = {puesto.get(normalize_key('N°')) for puesto in puestos_filtrados}
+                    numeros_puestos_filtrados = {puesto.get(normalize_key('N°')) for puesto in puestos_filtrados} # Asegúrate que la clave 'N°' se normalice igual que en puestos_detalle
                     resumen_filtrado = [resumen for resumen in resumen_original if resumen.get('nro') in numeros_puestos_filtrados]
                     st.info(f"📊 Filtro aplicado: Se incluirán {len(puestos_filtrados)} puestos con riesgo de {agente_seleccionado_filtro} INTERMEDIO.")
 
@@ -259,7 +265,7 @@ with col_accion:
                         'informacion_general': datos_enriquecidos.get('informacion_general', {}),
                         'puestos_trabajo_detalle': puestos_filtrados,
                         'resumen_global_riesgos_tabla': resumen_filtrado,
-                        'fecha_actual_reporte': datetime.now().strftime("%d-%m-%Y"),
+                        'fecha_actual_reporte': datetime.now().strftime("%d-%m-%Y"), # Cambiado formato de fecha
                         'numero_informe_tecnico': numero_informe,
                         'nombre_ergonomo': nombre_ergonomo,
                         'rut_ergonomo': rut_ergonomo,
@@ -276,12 +282,11 @@ with col_accion:
                         'experto_en_prevencion': experto_prevencion
                     }
                 
-                # --- Cargar la plantilla Word seleccionada dinámicamente ---
                 nombre_agente_norm_para_plantilla = normalize_key(agente_seleccionado_filtro)
                 ruta_plantilla_en_repo = MAPEO_AGENTE_A_PLANTILLA.get(nombre_agente_norm_para_plantilla)
 
                 if not ruta_plantilla_en_repo:
-                    st.error(f"❌ No se encontró una plantilla mapeada para el agente: '{agente_seleccionado_filtro}'. Verifica el diccionario 'MAPEO_AGENTE_A_PLANTILLA' en el código y los archivos en la carpeta 'plantillas'.")
+                    st.error(f"❌ No se encontró una plantilla mapeada para el agente: '{agente_seleccionado_filtro}'. Verifica el diccionario 'MAPEO_AGENTE_A_PLANTILLA' y los archivos en 'plantillas/'.")
                 else:
                     with st.spinner(f"📄 Cargando plantilla '{ruta_plantilla_en_repo}' y generando informe Word..."):
                         try:
@@ -323,6 +328,6 @@ with col_accion:
             st.warning("⚠️ Por favor, carga el archivo Excel.")
 
 # Opcional: Mostrar el JSON procesado para depuración
-# if 'contexto_final' in locals():
+# if 'contexto_final' in locals() and contexto_final: # Verificar si contexto_final existe y no es None
 #     if st.checkbox("Mostrar datos JSON completos para el informe (depuración)", key="show_json_checkbox"):
 #         st.json(contexto_final)
